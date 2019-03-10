@@ -11,6 +11,11 @@ public interface CountryMapper {
 	 * @return
 	 */
 	List<Country> selectAll();
+	/**
+	 * 根据ID查询国家信息
+	 * @return
+	 */
+	Country selectById(Long id);
 	
 	/**
 	 * 调用存储过程查询国家信息

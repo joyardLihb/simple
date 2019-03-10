@@ -11,6 +11,10 @@
 	<select id="selectAll" resultType="Country">
 		select id,countryname,countrycode from country
 	</select>
+	<select id="selectById" resultType="Country">
+    	select id,countryname,countrycode from country
+    	where id = #{id}
+  </select>
 	<!-- 查询国家信息：通过调用存储过程 -->
 	<select id="selectCountries" statementType="CALLABLE" useCache="false">
 		{call SELECT_COUNTRIES(
