@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper 
+		  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	      "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="tk.mybatis.simple.mapper.CountryMapper">
+	<resultMap id="countryMap" type="tk.mybatis.simple.model.Country">
+	    <id column="ID" jdbcType="DECIMAL" property="id" />
+	    <result column="COUNTRYNAME" jdbcType="VARCHAR" property="countryname" />
+	    <result column="COUNTRYCODE" jdbcType="VARCHAR" property="countrycode" />
+	  </resultMap>
+	<select id="selectAll" resultType="Country">
+		select id,countryname,countrycode from country
+	</select>
+	<!-- 查询国家信息：通过调用存储过程 -->
+	<select id="selectCountries" statementType="CALLABLE" useCache="false">
+		{call SELECT_COUNTRIES(
+			#{list1,mode=OUT,jdbcType=CURSOR,javaType=ResultSet,resultMap=countryMap},
+			#{list2,mode=OUT,jdbcType=CURSOR,javaType=ResultSet,resultMap=countryMap}
+			)
+		}
+	</select>
+</mapper>

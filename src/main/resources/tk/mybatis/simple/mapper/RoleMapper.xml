@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper 
+		  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	      "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="tk.mybatis.simple.mapper.RoleMapper">
+  <!-- 配置默认二级缓存 ，基于内存MAP-->
+  <!-- <cache eviction="FIFO" flushInterval="60000" size="512" readOnly="false"/> -->
+  <!-- 配置基于EHCACHE的二级缓存 -->
+  <cache type="org.mybatis.caches.ehcache.EhcacheCache"/>
+  <!-- 配置基于REDIS的二级缓存 -->
+  <!--<cache type="org.mybatis.caches.redis.RedisCache"/>-->
+  <resultMap id="roleMap" type="tk.mybatis.simple.model.SysRole">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="role_name" jdbcType="VARCHAR" property="roleName" />
+    <result column="enabled" jdbcType="INTEGER" property="enabled" />
+    <result column="create_by" jdbcType="BIGINT" property="createBy" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+  </resultMap>
+  <!-- 失败的roleMap2 -->
+  <resultMap id="roleMap2" type="tk.mybatis.simple.model.SysRole">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="role_name" jdbcType="VARCHAR" property="roleName" />
+    <result column="enabled" jdbcType="INTEGER" property="enabled" />
+    <association property="createInfo" ><!-- 使用association和collection组合时报空指针错误，未解决 -->
+	    <result column="create_by" jdbcType="BIGINT" property="createBy" />
+	    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    </association>
+  </resultMap>
+  <!-- 实现collection嵌套查询+懒加载功能 -->
+  <resultMap type="tk.mybatis.simple.model.SysRole" id="rolePrivilegeMapSelect" extends="roleMap">
+  		<collection property="sysPrivilegeList" fetchType="lazy" column="{roleId=id}" select="tk.mybatis.simple.mapper.SysPrivilegeMapper.selectPrivilegesByRoleId">
+  		</collection>
+  </resultMap>
+  <resultMap type="tk.mybatis.simple.model.SysRole" id="roleSysPrivilegeMap" extends="roleMap">
+  	  <collection property="sysPrivilegeList" columnPrefix="privilege_" resultMap="tk.mybatis.simple.mapper.SysPrivilegeMapper.sysPrivilegeMap">
+      </collection>
+  </resultMap>
+  <!--  -->
+  <resultMap type="tk.mybatis.simple.model.SysRole" id="roleSysPrivilegeMapChoose">
+      <discriminator javaType="int" column="enabled"><!-- 使用鉴别期映射，慎用 -->
+      	<case value="0" resultMap="roleMap"></case><!-- 如果当前角色有效标志位无效，则不去加载角色的权限信息 -->
+      	<case value="1" resultMap="rolePrivilegeMapSelect"></case><!-- 如果当前角色有效标志位有效，则懒加载返回角色下的权限列表信息 -->
+      </discriminator>
+  </resultMap>
+  <select id="selectById" resultMap="roleMap">
+    select id, role_name, enabled, create_by, create_time
+    from sys_role
+    where id = #{id}
+  </select>
+  <!-- 通过继承resultMap的方法实现查询用户所属角色及权限信息 -->
+	<select id="selectAllRoleAndPrivilege"  resultMap="roleSysPrivilegeMap">
+		SELECT
+			r.id,
+			r.role_name,
+			r.enabled,
+			r.create_by,
+			r.create_time,
+			p.id privilege_id,
+			p.privilege_name privilege_privilege_name,
+			p.privilege_url privilege_privilege_url
+		FROM
+			 sys_role r
+		INNER join sys_role_privilege rp on rp.role_id = r.id
+		INNER JOIN sys_privilege p on p.id = rp.privilege_id
+	</select>
+	<!-- 根据userId返回对应的角色列表 -->
+	<select id="selectRolesByUserId" resultMap="roleSysPrivilegeMapChoose">
+		SELECT
+			r.id,
+			r.role_name,
+			r.enabled,
+			r.create_by,
+			r.create_time
+		FROM
+			 sys_role r
+		INNER join sys_user_role ur on ur.role_id = r.id
+		where ur.user_id = #{userId}
+	</select>
+	<update id="updateByPrimaryKey" parameterType="tk.mybatis.simple.model.SysRole">
+	    update sys_role
+	    set role_name = #{roleName,jdbcType=VARCHAR},
+	      enabled = #{enabled,jdbcType=INTEGER},
+	      create_by = #{createBy,jdbcType=BIGINT},
+	      create_time = #{createTime,jdbcType=TIMESTAMP}
+	    where id = #{id,jdbcType=BIGINT}
+  </update>
+</mapper>

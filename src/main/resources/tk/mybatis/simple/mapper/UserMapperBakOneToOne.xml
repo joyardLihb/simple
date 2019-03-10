@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper 
+		  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	      "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="tk.mybatis.simple.mapper.UserMapper"><!-- mapper接口和XML文件通过namespace值进行关联 -->
+	<resultMap type="tk.mybatis.simple.model.SysUser" id="userMap">
+		<id property="id" column="id"/>
+		<result property="userName" column="user_name"/>
+		<result property="userPassword" column="user_password"/>
+		<result property="userEmail" column="user_email"/>
+		<result property="userInfo" column="user_info"/>
+		<result property="headImg" column="head_img" jdbcType="BLOB"/>
+		<result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
+	</resultMap>
+	<resultMap type="tk.mybatis.simple.model.SysUser" id="userRoleMap" extends="userMap"><!-- resultMap可以继承，避免重复代码 -->
+		<association property="sysRole" columnPrefix="role_" resultMap="tk.mybatis.simple.mapper.RoleMapper.roleMap">
+		</association>
+	</resultMap>
+	<!-- 2、管理roleMapper.xml中函数查询角色信息 -->
+	<resultMap type="tk.mybatis.simple.model.SysUser" id="userRoleMapSelect" extends="userMap">
+		<!-- 通过id=role_id作为select的管理参数，调用roleMapper中的函数，查询角色信息;fetch="lazy"为懒加载，如果设置了，则只有在真的执行了getRole()方法时才会去查询角色信息 -->
+		<association fetchType="lazy" property="sysRole" column="id=role_id" select="tk.mybatis.simple.mapper.RoleMapper.selectById">
+		</association>
+	</resultMap>
+	<!-- 插入用户：不返回主键自增的值 -->
+	<insert id="insert">
+		insert into sys_user(
+		    id,user_name,user_password,user_email,user_info,head_img,create_time)
+		values(#{id},#{userName},#{userPassword},#{userEmail},
+		       #{userInfo},#{headImg,jdbcType=BLOB},#{createTime,jdbcType=TIMESTAMP})
+	</insert>
+	<!-- 插入用户 ：通过JDBC的方式返回主键自增的值，只适用于支持主键自增的数据库-->
+	<insert id="insert2" useGeneratedKeys="true" keyProperty="id">
+		insert into sys_user(
+		    user_name,user_password,
+		    <if test="userEmail!=null and userEmail != ''">
+		    	user_email,
+		    </if>
+		    user_info,head_img,create_time)<!-- 这种方式需要去掉id列 -->
+		values(#{userName},#{userPassword},
+			<if test="userEmail!=null and userEmail != ''"><!-- 动态判断是否需要插入user_email值，如果为空，则不插入，系统将使用数据库中的默认值 -->
+				#{userEmail},
+			</if>
+		       #{userInfo},#{headImg,jdbcType=BLOB},#{createTime,jdbcType=TIMESTAMP})
+	</insert>
+	<!-- 插入用户 ：通过JDBC的方式返回主键自增的值，适用于支持主键自增(mysql)和非自增且通过序列获取主键的数据库(oracle)-->
+	<insert id="insert3" databaseId="mysql">
+		insert into sys_user(
+		    user_name,user_password,user_email,user_info,head_img,create_time)<!-- 这种方式需要去掉id列 -->
+		values(#{userName},#{userPassword},#{userEmail},
+		       #{userInfo},#{headImg,jdbcType=BLOB},#{createTime,jdbcType=TIMESTAMP})
+		<selectKey keyColumn="id" resultType="long" keyProperty="id" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+	<insert id="insert3" databaseId="oracle">
+		<selectKey keyColumn="id" resultType="long" keyProperty="id" order="BEFORE">
+			SELECT SEQ_SYS_USER.nextval from dual
+		</selectKey>
+		insert into sys_user(id,
+		    user_name,user_password,user_email,user_info,head_img,create_time)<!-- oracle这种方式需要加上id列 -->
+		values(#{id},#{userName},#{userPassword},#{userEmail},
+		       #{userInfo},#{headImg,jdbcType=BLOB},#{createTime,jdbcType=TIMESTAMP})
+	</insert>
+	<!-- 批量新增用户，利用foreach，目前不支持oracle -->
+	<insert id="insertList"> <!-- useGeneratedKeys="true" keyProperty="id",经测试无法通过此方式返回批量插入的记录ID -->
+		insert into sys_user(
+		    user_name,user_password,user_email,user_info,head_img,create_time)
+		values
+			<foreach collection="list" separator="," item="user">
+			    (#{user.userName},#{user.userPassword},#{user.userEmail},
+		         #{user.userInfo},#{user.headImg,jdbcType=BLOB},#{user.createTime,jdbcType=TIMESTAMP})
+			</foreach>
+	</insert>
+	<!-- 根据用户ID更新用户 -->
+	<update id="updateById">
+		update sys_user
+		set user_name = #{userName},
+		    user_password = #{userPassword},
+		    user_email = #{userEmail},
+		    user_info = #{userInfo},
+		    head_img = #{headImg,jdbcType=BLOB},
+		    create_time = #{createTime,jdbcType=TIMESTAMP}
+		where id = #{id}
+	</update>
+	<!-- 通过主键ID更新用户,有选择的更新 -->
+	<update id="updateBySelective">
+		update sys_user
+		set 
+			<if test="userName!=null and userName != ''">
+				user_name = #{userName},
+			</if>
+			<if test="userPassword!=null and userPassword != ''">
+		    	user_password = #{userPassword},
+			</if>
+			<if test="userEmail!=null and userEmail != ''">
+		   		user_email = #{userEmail},
+			</if>
+			<if test="userInfo!=null and userInfo != ''">
+		    	user_info = #{userInfo},
+			</if>
+			<if test="headImg!=null">
+		    	head_img = #{headImg,jdbcType=BLOB},
+			</if>
+			<if test="createTime!=null">
+		    	create_time = #{createTime,jdbcType=TIMESTAMP},
+			</if>
+			id = #{id}
+		where id = #{id}
+	</update>
+	<!-- 通过map更新列,利用foreach处理 -->
+	<update id="updateByMap">
+		update sys_user
+		set 
+			<foreach collection="_parameter" item="val" index="key" separator=",">
+				${key} = #{val} 
+			</foreach>
+		where id = #{id}
+	</update>
+	<!-- 根据用户ID删除用户 -->
+	<update id="deleteById">
+		delete from sys_user where id = #{id}
+	</update>
+	<!-- 根据用户ID查询用户 -->
+	<select id="selectById" resultMap="userMap"><!-- mapper接口中的方法通过方法名与此处id对应，进行关联，同一个命名空间不允许出现相同id -->
+		select * from sys_user where id = #{id}
+	</select>
+	<!-- 通过用户信息查询相关的用户列表，利用动态SQL和OGNL表达式支持模糊查询和if条件查询 -->
+	<select id="selectByUser" resultType="tk.mybatis.simple.model.SysUser">
+		select id,
+		    user_name userName,
+		    user_password userPassword,
+		    user_email userEmail,
+		    head_img headImg,
+		    user_info userInfo,
+		    create_time createTime
+		 from sys_user
+		 <where><!-- 使用where标签，系统将自动在if条件均不满足时不产生WHERE关键字；在某一个条件满足时，自动剔除掉最前边的AND 或者 OR -->
+			 <!--利用类的静态方法可以实现通过类函数来判断是否为空，替换原来的判断test="userName!=null and userName != ''"  -->
+			 <if test="@tk.mybatis.simple.tool.StringUtil@isNotEmpty(userName)"><!-- 对于任意类型都可以通过!=null来判断空，只有字符串可以通过!=''来判断空字符串；两个判断先后顺序无所谓 -->
+			 	<!-- 通过bind和类静态方法可以打印出xml接收到的参数信息 -->
+			 	<bind name="print" value="@tk.mybatis.simple.tool.StringUtil@print(userName)"/>
+			 	<if test="_databaseId == 'mysql'">
+			 		and user_name like concat('%',#{userName},'%')
+			 	</if>
+			 	<if test="_databaseId == 'oracle'">
+			 		and user_name like '%'||#{userName}||'%'
+			 	</if>
+			 </if>
+			 <if test="userEmail!=null and userEmail != ''">
+			 	and user_email = #{userEmail}
+			 </if>
+		 </where>
+	</select>
+	<!-- 通过自动映射的方法实现查询用户所属角色 -->
+	<select id="selectUserAndRoleById" resultType="tk.mybatis.simple.model.SysUser">
+		SELECT  u.user_name userName,
+			    u.user_password userPassword,
+			    u.user_email userEmail,
+			    u.head_img headImg,
+			    u.user_info userInfo,
+			    u.create_time createTime,
+			    r.id as "sysRole.id",
+			    r.role_name as 'sysRole.roleName',
+			    r.enabled as 'sysRole.enabled',
+			    r.create_by as 'sysRole.createBy',
+			    r.create_time as 'sysRole.createTime'
+			FROM sys_user u
+			INNER JOIN sys_user_role ur ON u.id = ur.user_id
+			inner join sys_role r on ur.role_id = r.id
+			WHERE u.id = #{userId}
+	</select>
+	<!-- 通过继承resultMap的方法实现查询用户所属角色 -->
+	<select id="selectUserAndRoleById2"  resultMap="userRoleMap">
+		SELECT  u.user_name,
+			    u.user_password,
+			    u.user_email,
+			    u.head_img,
+			    u.user_info,
+			    u.create_time,
+			    r.id role_id,
+			    r.role_name role_role_name,
+			    r.enabled role_enabled,
+			    r.create_by role_create_by,
+			    r.create_time role_create_time
+			FROM sys_user u
+			INNER JOIN sys_user_role ur ON u.id = ur.user_id
+			inner join sys_role r on ur.role_id = r.id
+			WHERE u.id = #{userId}
+	</select>
+	<!-- 通过分成两次查询的方法查询用户所属角色 ：1、查询用户及用户所属角色信息-->
+	<select id="selectUserAndRoleByIdSelect"  resultMap="userRoleMapSelect">
+		SELECT  u.user_name,
+			    u.user_password,
+			    u.user_email,
+			    u.head_img,
+			    u.user_info,
+			    u.create_time,
+			    ur.role_id
+			FROM sys_user u
+			INNER JOIN sys_user_role ur ON u.id = ur.user_id
+			WHERE u.id = #{userId}
+	</select>
+	<!-- 通过ID或者用户名查询用户信息，利用动态SQL和OGNL表达式支持choose when otherwise条件查询 -->
+	<select id="selectByIdOrUserName" resultType="tk.mybatis.simple.model.SysUser">
+		select id,
+		    user_name userName,
+		    user_password userPassword,
+		    user_email userEmail,
+		    head_img headImg,
+		    user_info userInfo,
+		    create_time createTime
+		 from sys_user
+		 where 1 = 1
+		 <choose>
+		 	<when test="id!=null">
+		 		and id = #{id}
+		 	</when>
+		 	<when test="userName!=null and userName != ''">
+		 		and user_name = #{userName}
+		 	</when>
+		 	<otherwise>
+		 		and 1 = 2  <!-- 如果用户名和ID均为空，则无结果返回。如果不配置，将会返回所有对象，不符合接口逻辑 -->
+		 	</otherwise>
+		 </choose>
+	</select>
+	<!-- 通过ID集合查询用户信息，利用动态SQL和OGNL表达式支持foreach条件查询 -->
+	<select id="selectByIdList" resultType="tk.mybatis.simple.model.SysUser">
+		select id,
+		    user_name userName,
+		    user_password userPassword,
+		    user_email userEmail,
+		    head_img headImg,
+		    user_info userInfo,
+		    create_time createTime
+		 from sys_user
+		 where id in 
+		 <foreach collection="list" open="(" close=")" separator="," item="id" index="i">
+		 	#{id}
+		 </foreach>
+	</select>
+	<!-- 查询所有用户 -->
+	<select id="selectAll" resultType="tk.mybatis.simple.model.SysUser">
+		select id,
+		    user_name userName,
+		    user_password userPassword,
+		    user_email userEmail,
+		    head_img headImg,
+		    user_info userInfo,
+		    create_time createTime
+		 from sys_user
+	</select>
+	<!-- 查询用户拥有的角色信息 -->
+	<select id="selectRolesByUserId" resultType="tk.mybatis.simple.model.SysRole">
+		SELECT r.id,r.role_name roleName,r.enabled,r.create_by createBy,r.create_time createTime
+			FROM sys_user u
+			INNER JOIN sys_user_role ur ON u.id = ur.user_id
+			inner join sys_role r on ur.role_id = r.id
+			WHERE u.id = #{userId}
+	</select>
+	<!-- 查询用户拥有的角色信息,返回信息中需含角色信息的同时，还含有少量用户信息，比如用户名 -->
+	<select id="selectRoleExtendsByUserId" resultType="tk.mybatis.simple.pojo.SysRoleExtend">
+		SELECT r.id,r.role_name roleName,r.enabled,r.create_by createBy,r.create_time createTime,u.user_name userName
+			FROM sys_user u
+			INNER JOIN sys_user_role ur ON u.id = ur.user_id
+			inner join sys_role r on ur.role_id = r.id
+			WHERE u.id = #{userId}
+	</select>
+	<!-- 查询用户拥有的角色信息,返回信息中需含角色信息的同时，还含有全部的用户信息 -->
+	<select id="selectRoleAndUsersByUserId" resultType="tk.mybatis.simple.model.SysRole">
+		SELECT r.id,r.role_name roleName,r.enabled,r.create_by createBy,r.create_time createTime,
+		       u.id as "user.id",u.user_name as "user.userName",u.user_password as "user.userPassword",
+		       u.user_email as "user.userEmail",u.user_info as "user.userInfo",
+		       u.head_img as "user.headImg",u.create_time as "user.createTime"
+			FROM sys_user u
+			INNER JOIN sys_user_role ur ON u.id = ur.user_id
+			inner join sys_role r on ur.role_id = r.id
+			WHERE u.id = #{userId}
+	</select>
+	<!-- 查询用户拥有的角色信息 ，根据用户ID和角色有效标志-->
+	<select id="selectRolesByUserIdAndEnabled" resultType="tk.mybatis.simple.model.SysRole">
+		SELECT r.id,r.role_name roleName,r.enabled,r.create_by createBy,r.create_time createTime
+			FROM sys_user u
+			INNER JOIN sys_user_role ur ON u.id = ur.user_id
+			inner join sys_role r on ur.role_id = r.id
+			WHERE u.id = #{userId} and r.enabled = #{enabled}
+	</select>
+</mapper>

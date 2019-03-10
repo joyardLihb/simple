@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration 
+		  PUBLIC "-//mybatis.org//DTD config 3.0//EN"
+	      "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	<settings>
+		<setting name="logImpl" value="LOG4J"/>
+		<!-- 通过配置mapUnderscoreToCamelCase为true，mybatis会自动将数据库字段名带下划线的转换为java实体驼峰 -->
+		<!-- <setting name="mapUnderscoreToCamelCase" value="true"/> -->
+		<!-- 本属性默认为true，会导致所有XML中设置的懒加载不生效，故要使用懒加载必须设置为false -->
+		<setting name="aggressiveLazyLoading" value="false"/>
+	</settings>
+	<typeAliases>
+		<package name="tk.mybatis.simple.model"/>
+	</typeAliases>
+	<plugins>
+		<!-- 对查询结果集中所有的key转换为驼峰形式 -->
+		<plugin interceptor="tk.mybatis.simple.plugin.CamelHumpInterceptor"></plugin>
+	</plugins><!-- 注意标签plugins放置的位置必须按照顺序，否则会报错，不能随便放 -->
+	<environments default="development">
+		<environment id="development">
+			<transactionManager type="JDBC">
+				<property name="" value=""/>
+			</transactionManager>
+			<dataSource type="UNPOOLED">
+				
+				<property name="driver" value="com.mysql.jdbc.Driver"/>
+				<property name="url" value="jdbc:mysql://localhost:3306/mybatis"/>
+				<property name="username" value="root"/>
+				<property name="password" value="123456"/>
+				
+				<!--<property name="driver" value="oracle.jdbc.driver.OracleDriver"/>
+				<property name="url" value="jdbc:oracle:thin:@127.0.0.1:1521:orcl"/>
+				<property name="username" value="spittr"/>
+				<property name="password" value="123456"/>-->
+			    
+			</dataSource>
+		</environment>
+	</environments>
+	<!-- 多数据库支持 -->
+	<databaseIdProvider type="DB_VENDOR">
+		<property name="SQL Server" value="sqlserver"/>
+		<property name="DB2" value="db2"/>
+		<property name="Oracle" value="oracle"/>
+		<property name="MySQL" value="mysql"/>
+		<property name="H2" value="h2"/>
+	</databaseIdProvider>
+	<!-- 启动时SqlSessionFactory会加载所有的mappers中配置文件，然后解析每一个xml文件，得到所有的属性配置和执行SQL信息供后续sqlSession使用 -->
+	<mappers>
+		<package name="tk.mybatis.simple.mapper"/>
+	</mappers>
+</configuration>
